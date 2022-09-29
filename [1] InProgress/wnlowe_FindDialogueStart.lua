@@ -11,13 +11,13 @@ function Msg(variable)
 end
 
 function pullDataForward()
-    for pos = sTime, itemLength, 1 do
+    for pos = sTime, itemLength, 0.2 do
         buf = reaper.new_array(channels*buferLength)
         reaper.GetAudioAccessorSamples(Accessor, pSR, channels, pos, buferLength, buf)
         buf.table()
         for i = 1, #buf, 1 do
-            output = reaper.ScaleToEnvelopeMode(Mode, buf[i])
-            if output > 200 then return (i + id) end
+            output = math.abs( reaper.ScaleToEnvelopeMode(Mode, buf[i]))
+            if output > 200 and output < 225 then Msg(output) return (i + id) end
             data[i + id] = buf[i]
         end
         id = id + buferLength
