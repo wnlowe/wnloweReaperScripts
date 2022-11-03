@@ -66,7 +66,7 @@ function RunAudioSuite()
         reaper.MoveMediaItemToTrack(ItemList[i], AudioSuite)
         reaper.SetMediaItemSelected(ItemList[i], true)
         -- Process the Media Item
-        reaper.Main_OnCommand(40209, 0)
+        reaper.Main_OnCommand(40209, 0) --40361 for mono; 41993
         -- Return the Media Item and deselect it
         reaper.MoveMediaItemToTrack(ItemList[i], TrackList[i])
         reaper.SetMediaItemSelected(ItemList[i], false)
