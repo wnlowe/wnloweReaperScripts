@@ -1,3 +1,9 @@
+------U S E R  S P E C I F I C ---------
+headTailsCommand = "_RS68316f464d073fb59581e7077b9d08f750b2cab9"
+--######################################
+
+reaper.Undo_BeginBlock()
+
 numItems = reaper.CountSelectedMediaItems(0)
 allItems = {}
 for i = 0, numItems do
@@ -6,9 +12,15 @@ end
 
 reaper.Main_OnCommand(40289, 0)
 
-for j = 0, numItems do
+for j = 0, #allItems do
     reaper.SetMediaItemSelected( allItems[j], true )
-    commandId = reaper.NamedCommandLookup("_RS9e12f1aa39697d84844c05ba90a19c5748408600")
+    commandId = reaper.NamedCommandLookup(headTailsCommand)
     reaper.Main_OnCommand(commandId, 0)
     reaper.SetMediaItemSelected( allItems[j], false )
 end
+
+for i = 0, #allItems do
+    reaper.SetMediaItemSelected( allItems[j], true )
+end
+
+reaper.Undo_EndBlock()
