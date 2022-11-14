@@ -20,7 +20,7 @@ for j = 0, #allItems do
 end
 
 for i = 0, #allItems do
-    reaper.SetMediaItemSelected( allItems[j], true )
+    reaper.SetMediaItemSelected( allItems[i], true )
 end
 
 reaper.Undo_EndBlock()
