@@ -1,3 +1,5 @@
+-- use this https://forum.cockos.com/showthread.php?t=234366 to get a prompt for user input to mass complete any action
+
 ------U S E R  S P E C I F I C ---------
 headTailsCommand = "_RS68316f464d073fb59581e7077b9d08f750b2cab9"
 --######################################
@@ -23,4 +25,4 @@ for i = 0, #allItems do
     reaper.SetMediaItemSelected( allItems[i], true )
 end
 
-reaper.Undo_EndBlock()
+reaper.Undo_EndBlock("Mass Deployment of Heads and Tails script by WNL & RL")
