@@ -40,35 +40,39 @@ function isdir(path)
 end
 
 function readModes()
-    local data = {{}}
+    local data = {}
     local mode_idx = 0
     local submode_idx = 0
-    m = 1
+    local str = ''
     while true do
         local mode_ret, mode_str = reaper.EnumPitchShiftModes(mode_idx)
         if not mode_ret then break end
         if mode_str and mode_str:len() > 0 then
-            data[m][1] = mode_str
-            s = 2
             local continue = true
             while continue do
                 local submode_str = reaper.EnumPitchShiftSubModes(mode_idx, submode_idx)
                 if submode_str and submode_str:len() > 0 then
-                    -- local row = {[mode_str] = submode_str}
-                    -- table.insert(data, mode_str)
-                    -- table.insert()
-                    data[m][s] = submode_str
-                -- reaper.ShowConsoleMsg(mode_str .. " - " .. submode_str .. "\n")
+                    local idx = mode_idx<<16|submode_idx
+                    str = str .. idx .. ',' .. mode_idx .. ',' .. mode_str .. ',' .. submode_idx .. ',' .. submode_str
+                    -- local _, count = string.gsub(str, ",", "")
+                    -- for z in string.gsub(str, ",") do
+                    --     count = count + 1
+                    -- end
+                    str = str ..  '\n' --',' .. count ..
                     submode_idx = submode_idx + 1
-                    s = s + 1
                 else
                     submode_idx = 0
                     continue = false
                 end
             end
-            m = m + 1
         end
         mode_idx = mode_idx + 1 
+    end
+    for line in string.gmatch(str,'[^\r\n]+') do
+        fields = line:split(',')
+        local count = #fields - 4
+        table.insert(fields, count)
+        table.insert(data, fields)
     end
     return data
 end
@@ -78,9 +82,24 @@ function writeData(csv)
     fileInput = readModes()
     local file = assert(io.open(csv, "w"))
     file:write("Version,"..version..'\n')
-    Msg(fileInput[1][1])
     for i = 1, #fileInput do
         for j = 1, #fileInput[i] do
+            if j == 3 then
+                -- fileInput[i][j] = fileInput[i][j]:gsub('Ã©', 'E')
+                if string.find(fileInput[i][j], "lastique") then
+                    local arr = {}
+                    for word in fileInput[i][j]:gmatch("%S+") do
+                        table.insert( arr, word)
+                    end
+                    arr[1] = 'Elastique'
+                    local replace = ''
+                    for a = 1, #arr do
+                        if a > 1 then replace = replace .. ' ' end
+                        replace = replace .. arr[a]
+                    end
+                    fileInput[i][j] = replace
+                end
+            end
             if j > 1 then file:write(',') end
             if fileInput[i][j] ~= nil then
                 file:write(fileInput[i][j])
@@ -95,6 +114,7 @@ csvName = 'PitchAlgoOptions.csv'
 version =  reaper.GetAppVersion()
 
 if not exists(csvName) then
+    Msg("Not Exist")
     writeData(csvName)
 else
     fileOutput = {}
@@ -114,6 +134,158 @@ else
             file:write('\n')
         end
         file:close()
+        Msg("Edit")
         writeData(csvName)
     end
 end
+
+----------------------------------------------------------------
+----------------------------------------------------------------
+--FILE HAS BEEN WRITTEN
+----------------------------------------------------------------
+----------------------------------------------------------------
+function findData()
+    local fileData = {}
+    if fileOutput == nil then
+        if fileInput == nil then
+            file = assert(io.open(csvName, "r"))
+            for line in file:lines() do
+                fields = line:split(',')
+                table.insert(fileData, fields)
+            end
+            file:close()
+        else
+            fileData = fileInput
+        end
+    else
+        fileData = fileOutput
+    end
+    return fileData
+end
+
+function GetSelectedTakeInformation(take)
+    local selectedInfo = {}
+    local data = findData()
+    local currMode = tostring(math.floor(reaper.GetMediaItemTakeInfo_Value(take, "I_PITCHMODE")))
+    for d = 1, #data do
+        if data[d][1] == currMode then
+            selectedInfo = data[d]
+            break
+        end
+    end
+    return selectedInfo
+end
+
+function GetModes()
+    local mds = {}
+    local data = findData()
+    local m = 1
+    local last = ''
+    local max = 0
+    for d = 2, #data do
+        if #mds > 0 then
+            if data[d][3] ~= last then
+                mds[m - 1]["max"] = max
+                mds[m] = {
+                    ["label"] = data[d][3],
+                    ["id"] = data[d][2],
+                    ["max"] = 0
+                }
+                m = m + 1
+                last = data[d][3]
+                max = data[d][#data[d]]
+            else
+                if data[d][#data[d]] > max then
+                    max = data[d][#data[d]]
+                end
+                if d == #data then
+                    mds[m - 1]["max"] = max
+                end
+            end
+        else
+            mds[m] = {
+                ["label"] = data[d][3],
+                ["id"] = data[d][2],
+                ["max"] = 0
+            }
+            last = data[d][3]
+            m = m + 1
+            max = data[d][#data[d]]
+        end
+    end
+    return mds
+end
+
+
+----------------------------------------------------------------
+----------------------------------------------------------------
+--UI
+----------------------------------------------------------------
+----------------------------------------------------------------
+package.path = reaper.GetResourcePath() .. '/Scripts/rtk/1/?.lua'
+local rtk = require('rtk')
+local log = rtk.log
+--Main Window
+win = rtk.Window{w=640, h=480, halign = 'center', title='WNL Change Pitch Algorithm'}
+--Vertical Primary Container
+local main = win:add(rtk.VBox{halign="center", vspacing = 10})
+local modeSelect = main:add(rtk.OptionMenu{
+    menu = GetModes()
+})
+local subContainer = main:add(rtk.FlowBox{vspacing=20, hspacing=20})
+
+function AddSubModesMenu(count)
+    for i = 1, count do
+        
+    end
+end
+
+if reaper.CountSelectedMediaItems() > 0 then
+    local item = reaper.GetSelectedMediaItem(0, 0)
+    local take = reaper.GetActiveTake(item)
+    selectedInfo = GetSelectedTakeInformation(take)
+    modeSelect:attr('selected', selectedInfo[2])
+    Msg(modeSelect.selected_item.max)
+end
+modeSelect.onchange = function(self, item)
+    local selected = item.id
+    Msg(item.max)
+    -- for i = 1, #selectedInfo - 4 do
+        
+    -- end
+end
+
+win:open()
+
+----------------------------------------------------------------
+----------------------------------------------------------------
+--MAIN FUNCTION
+----------------------------------------------------------------
+----------------------------------------------------------------
+
+selectedTake = ''
+
+function MainFunction()
+    if reaper.CountSelectedMediaItems() < 1 then goto finish end
+    newMediaItem = reaper.GetSelectedMediaItem(0, 0)
+    newTake = reaper.GetActiveTake(newMediaItem)
+    if newTake == selectedTake then goto check end
+    selectedTake = newTake
+    selectedInfo = GetSelectedTakeInformation(selectedTake)
+    modeSelect:attr('selected', selectedInfo[2])
+    goto changed
+    ::check::
+    selectedInfo = GetSelectedTakeInformation(selectedTake)
+    if selectedInfo[2] ~= modeSelect.selected then
+        modeSelect:attr('selected', selectedInfo[2])
+        Msg(modeSelect.selected_item.max)
+        goto changed
+    else goto finish
+    end
+    ::changed::
+
+    ::finish::
+    reaper.defer(MainFunction)
+end
+
+MainFunction()
