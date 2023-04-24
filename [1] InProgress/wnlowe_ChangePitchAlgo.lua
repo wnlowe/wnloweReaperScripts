@@ -1,3 +1,9 @@
+---------------------------------------------
+---------------------------------------------
+--HELPER FUNCTIONS
+---------------------------------------------
+---------------------------------------------
+
 function Msg(variable)
     dbug = true
     if dbug then reaper.ShowConsoleMsg(tostring (variable).."\n") end
@@ -25,7 +31,6 @@ function string:split(sSeparator, nMax, bRegexp)
     return aRecord
 end
 
---File or Directory helper functions
 function exists(file)
     local ok, err, code = os.rename(file, file)
     if not ok then
@@ -38,7 +43,11 @@ end
 function isdir(path)
     return exists(path.."/")
 end
-
+---------------------------------------------
+---------------------------------------------
+--ONE TIME CSV
+---------------------------------------------
+---------------------------------------------
 function readModes()
     local data = {}
     local mode_idx = 0
@@ -110,7 +119,14 @@ function writeData(csv)
     file:close()
 end
 
-csvName = 'PitchAlgoOptions.csv'
+midExtension = reaper.GetResourcePath() .. '/Scripts/William N. Lowe/wnloweReaperScripts/'
+extAlt = reaper.GetResourcePath() .. '/Scripts/wnloweReaperScripts/'
+if not isdir(midExtension) then
+    if isdir(extAlt) then
+        midExtension = extAlt
+    else midExtension = reaper.GetResourcePath() .. '/Scripts/' end
+end
+csvName =  midExtension ..'PitchAlgoOptions.csv'
 version =  reaper.GetAppVersion()
 
 if not exists(csvName) then
@@ -138,7 +154,6 @@ else
         writeData(csvName)
     end
 end
-
 ----------------------------------------------------------------
 ----------------------------------------------------------------
 --FILE HAS BEEN WRITTEN
@@ -178,6 +193,7 @@ end
 
 function GetModes()
     local mds = {}
+    submodes = {}
     local data = findData()
     local m = 1
     local last = ''
@@ -245,7 +261,7 @@ if reaper.CountSelectedMediaItems() > 0 then
     local take = reaper.GetActiveTake(item)
     selectedInfo = GetSelectedTakeInformation(take)
     modeSelect:attr('selected', selectedInfo[2])
-    Msg(modeSelect.selected_item.max)
+    -- Msg(modeSelect.selected_item().max)
 end
 modeSelect.onchange = function(self, item)
     local selected = item.id
@@ -278,7 +294,7 @@ function MainFunction()
     selectedInfo = GetSelectedTakeInformation(selectedTake)
     if selectedInfo[2] ~= modeSelect.selected then
         modeSelect:attr('selected', selectedInfo[2])
-        Msg(modeSelect.selected_item.max)
+        -- Msg(modeSelect.selected_item.max)
         goto changed
     else goto finish
     end
