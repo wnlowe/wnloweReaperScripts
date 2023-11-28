@@ -9,6 +9,8 @@
 ----------------------------------------------------------------
 ----------------------------------------------------------------
 --[[
+    V1.0
+    [x] Script fully functional for single item selection
     V0.5:
     [x] Found best available function for best fit of dB to Automation
 ]] -------------------------------------------------------------
@@ -68,14 +70,6 @@ function SetVolumePoints(currentMediaItem, point, dbMax, dbMin)
         else reaper.InsertEnvelopePoint(env, itemLength, valueMax, 0, 0, false, true) end
     end
     reaper.Envelope_SortPoints(env)
-    -- for i = 0, # do
-    --     if k % 2 == 0 then
-    --         vol = value
-    --     else
-    --         vol = 716.21785031263
-    --     end
-    --     reaper.InsertEnvelopePoint(env, c * k, vol, 0, 0, false)
-    -- end
 end
 
 ----------------------------------------------------------------
@@ -110,13 +104,7 @@ CycleResponse = {}
 for match in (Cycles .. ","):gmatch("(.-),") do
     table.insert(CycleResponse, match)
 end
--- for i = 1, #CycleResponse do
---     if i == 1 then
---         NumCycles = CycleResponse[i]
---     elseif i == 2 then
---         MaxVol = CycleResponse[i]
---     end
--- end
+
 if CycleResponse[1] == "" then NumCycles = 9
 else NumCycles = CycleResponse[1] end
 Offset = 1
@@ -145,7 +133,7 @@ PointLocations = {}
 for i = 1, NumCycles * 2 do
     PointLocations[i] = CycleLength * i
 end
--- Do processing on the longest item
+
 Msg(#PointLocations)
 for i = 1, #Items do
     SetVolumePoints(Items[i]["itemID"], PointLocations, MaxVol, MinVol)
