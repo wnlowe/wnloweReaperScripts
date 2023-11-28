@@ -49,7 +49,7 @@ end
 ---------------------------------------------
 ---------------------------------------------
 function readModes()
-    local data = {}
+    local readData = {}
     local mode_idx = 0
     local submode_idx = 0
     local str = ''
@@ -63,10 +63,6 @@ function readModes()
                 if submode_str and submode_str:len() > 0 then
                     local idx = mode_idx<<16|submode_idx
                     str = str .. idx .. ',' .. mode_idx .. ',' .. mode_str .. ',' .. submode_idx .. ',' .. submode_str
-                    -- local _, count = string.gsub(str, ",", "")
-                    -- for z in string.gsub(str, ",") do
-                    --     count = count + 1
-                    -- end
                     str = str ..  '\n' --',' .. count ..
                     submode_idx = submode_idx + 1
                 else
@@ -75,15 +71,15 @@ function readModes()
                 end
             end
         end
-        mode_idx = mode_idx + 1 
+        mode_idx = mode_idx + 1
     end
     for line in string.gmatch(str,'[^\r\n]+') do
         fields = line:split(',')
         local count = #fields - 4
         table.insert(fields, count)
-        table.insert(data, fields)
+        table.insert(readData, fields)
     end
-    return data
+    return readData
 end
 
 function writeData(csv)
@@ -180,11 +176,11 @@ end
 
 function GetSelectedTakeInformation(take)
     local selectedInfo = {}
-    local data = findData()
+    if Data == nil or Data == {} or #Data == 0 then Data = findData() end
     local currMode = tostring(math.floor(reaper.GetMediaItemTakeInfo_Value(take, "I_PITCHMODE")))
-    for d = 1, #data do
-        if data[d][1] == currMode then
-            selectedInfo = data[d]
+    for d = 1, #Data do
+        if Data[d][1] == currMode then
+            selectedInfo = Data[d]
             break
         end
     end
@@ -194,44 +190,143 @@ end
 function GetModes()
     local mds = {}
     submodes = {}
-    local data = findData()
+    if Data == nil or Data == {} or #Data == 0 then Data = findData() end
     local m = 1
     local last = ''
     local max = 0
-    for d = 2, #data do
+    for d = 2, #Data do
         if #mds > 0 then
-            if data[d][3] ~= last then
+            if Data[d][3] ~= last then
                 mds[m - 1]["max"] = max
                 mds[m] = {
-                    ["label"] = data[d][3],
-                    ["id"] = data[d][2],
+                    ["label"] = Data[d][3],
+                    ["id"] = Data[d][2],
                     ["max"] = 0
                 }
                 m = m + 1
-                last = data[d][3]
-                max = data[d][#data[d]]
+                last = Data[d][3]
+                max = Data[d][#Data[d]]
             else
-                if data[d][#data[d]] > max then
-                    max = data[d][#data[d]]
+                if Data[d][#Data[d]] > max then
+                    max = Data[d][#Data[d]]
                 end
-                if d == #data then
+                if d == #Data then
                     mds[m - 1]["max"] = max
                 end
             end
         else
             mds[m] = {
-                ["label"] = data[d][3],
-                ["id"] = data[d][2],
+                ["label"] = Data[d][3],
+                ["id"] = Data[d][2],
                 ["max"] = 0
             }
-            last = data[d][3]
+            last = Data[d][3]
             m = m + 1
-            max = data[d][#data[d]]
+            max = Data[d][#Data[d]]
         end
     end
     return mds
 end
 
+function GetFirstSubModeMenu()
+    local containerSize = subContainer.children
+    if #containerSize > 0 then subContainer:remove_all() end
+    if Data == nil or Data == {} or #Data == 0 then Data = findData() end
+    local found = false
+    local menuModes = {}
+    for a = 1, #Data do
+        if Data[a][2] == ActiveMode then
+            if not found then found = true end
+            if #menuModes > 0 then
+                for i = 1, #menuModes do
+                    if menuModes[i] == Data[a][5] then goto alreadyInTable end
+                end
+            end
+            table.insert(menuModes, Data[a][5])
+            ::alreadyInTable::
+        elseif found then break end
+    end
+    local subMenuConfig = {}
+    for i = 1, #menuModes do
+        subMenuConfig[i] = {
+            ["label"] = menuModes[i],
+            ["id"] = menuModes[i]
+        }
+    end
+    return subMenuConfig
+end
+
+function NilSM(instance)
+    ActiveMode = selectedInfo[2]
+    NumSubModes = selectedDepth
+    if instance == 1 then 
+        subModeSelect = subContainer:add(rtk.OptionMenu{
+            menu = GetFirstSubModeMenu()
+        })
+
+        subModeSelect.onchange = function(self, item)
+            local selfidx = subContainer:get_child_index(self)
+            Msg('idx = '..selfidx)
+        end
+    else
+
+    end
+    return subContainer:get_child(instance)
+end
+
+
+function AdditionalSubModes(idx)
+    local selfidx = idx
+    Msg(selfidx)
+    local topMode = selectedInfo[2]
+    local higherSubs = {}
+    for i = 1, selfidx - 1 do
+        local child = subContainer:get_child(i)
+        table.insert(higherSubs, child.selected)
+    end
+    if higherSubs == {} then Msg('PROBLEM HERE') end
+    for i = 1, #Data do
+        if Data[i][2] == topMode then
+            for j = 1, #higherSubs do
+                if Data[i][4+j] ~= higherSubs[j] then goto next end
+            end
+            local a = 0
+            local newMenuValues = {}
+            -- while Data[i + a][4 + #higherSubs] == higherSubs[#higherSubs] do
+            --     table.insert(newMenuValues, Data[i + a][4 + #higherSubs + 1])
+            --     a = a + 1
+            -- end
+            for a = i, #Data do
+                Msg(higherSubs[#higherSubs])
+                if Data[a][4 + #higherSubs] == higherSubs[#higherSubs] then
+                    table.insert(newMenuValues, Data[i + a][4 + #higherSubs + 1])
+                end
+                if Data[a][2] ~= selectedInfo[2] then break end
+            end
+            newMenu = {}
+            for j = 1, #newMenuValues do
+                Msg(newMenuValues[j])
+                newMenu[j] = {
+                    ["label"] = newMenuValues[j],
+                    ["id"] = newMenuValues[j]
+                }
+            end
+            Msg("success")
+            return newMenu
+        end
+        ::next::
+    end
+    Msg('idx = '..selfidx)
+end
+
+function AddSubMenu()
+    local depthTable = subContainer.children
+    local depth = #depthTable + 1
+    local maxDepth = selectedInfo[#selectedInfo]
+    if depth == 1 then
+        
+    end
+end
 
 ----------------------------------------------------------------
 ----------------------------------------------------------------
@@ -248,28 +343,56 @@ local main = win:add(rtk.VBox{halign="center", vspacing = 10})
 local modeSelect = main:add(rtk.OptionMenu{
     menu = GetModes()
 })
-local subContainer = main:add(rtk.FlowBox{vspacing=20, hspacing=20})
-
-function AddSubModesMenu(count)
-    for i = 1, count do
-        
-    end
-end
+subContainer = main:add(rtk.FlowBox{vspacing=20, hspacing=20})
 
 if reaper.CountSelectedMediaItems() > 0 then
-    local item = reaper.GetSelectedMediaItem(0, 0)
-    local take = reaper.GetActiveTake(item)
-    selectedInfo = GetSelectedTakeInformation(take)
+    SelectedItem = reaper.GetSelectedMediaItem(0, 0)
+    SelectedTake = reaper.GetActiveTake(SelectedItem)
+    selectedInfo = GetSelectedTakeInformation(SelectedTake)
     modeSelect:attr('selected', selectedInfo[2])
     -- Msg(modeSelect.selected_item().max)
 end
+
 modeSelect.onchange = function(self, item)
-    local selected = item.id
+    ActiveMode = item.id
+    NumSubModes = item.max
     Msg(item.max)
-    -- for i = 1, #selectedInfo - 4 do
-        
+    for i = 1, #Data do
+        if Data[i][2] == ActiveMode then
+            reaper.SetMediaItemTakeInfo_Value(SelectedTake, "I_PITCHMODE", Data[i][1])
+            selectedInfo = GetSelectedTakeInformation(selectedTake)
+            local containerSize = subContainer.children
+            if #containerSize > 0 then subContainer:remove_all() end
+            break
+        end
+    end
+    self:attr('selected', selectedInfo[2])
+
+    for i = 1, selectedInfo[#selectedInfo] do
+        subModeSelect = subContainer:add(rtk.OptionMenu{
+            menu = AddSubMenu()
+        })
+
+        subModeSelect.onchange = function(self, item)
+            local name = item.id
+            
+        end
+    end
+    -- Msg("Hello")
+    -- subModeSelect = subContainer:add(rtk.OptionMenu{
+    --     menu = GetFirstSubModeMenu()
+    -- })
+    -- if tonumber(selectedInfo[#selectedInfo]) > 1 then
+    --     for i = 2, selectedInfo[#selectedInfo] do
+    --         subModeSelect = subContainer:add(rtk.OptionMenu{
+    --             menu = AdditionalSubModes(i)
+    --         })
+    --     end
     -- end
+    
 end
+
+
 
 win:open()
 
@@ -289,11 +412,33 @@ function MainFunction()
     selectedTake = newTake
     selectedInfo = GetSelectedTakeInformation(selectedTake)
     modeSelect:attr('selected', selectedInfo[2])
+    Msg('Reselected')
+    selectedDepth = selectedInfo[#selectedInfo]
+    for i = 1, #selectedDepth do
+        local sm = subContainer:get_child(i)
+        if sm == nil then
+            sm = NilSM(i)
+        end
+        Msg(selectedInfo[i + 4])
+        sm:attr('selected', selectedInfo[i + 4])
+    end
     goto changed
     ::check::
     selectedInfo = GetSelectedTakeInformation(selectedTake)
+    --Somehow I need to check the final value of what is created by the current selected options
+        --against what the selected item's is
+    
     if selectedInfo[2] ~= modeSelect.selected then
         modeSelect:attr('selected', selectedInfo[2])
+        selectedDepth = selectedInfo[#selectedInfo]
+        for i = 1, #selectedDepth do
+            local sm = subContainer:get_child(i)
+            if sm == nil then
+                sm = NilSM(i)
+            end
+            Msg(selectedInfo[i + 4])
+            sm:attr('selected', selectedInfo[i + 4])
+        end
         -- Msg(modeSelect.selected_item.max)
         goto changed
     else goto finish

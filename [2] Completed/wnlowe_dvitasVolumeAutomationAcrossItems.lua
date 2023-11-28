@@ -17,12 +17,14 @@
 ----------------------------------------------------------------
 ----------------------------------------------------------------
 -- Msg function from marc carlton
-function Msg(variable) reaper.ShowConsoleMsg(tostring(variable) .. "\n") end
+Ifdebug = false
+function Msg(variable) if Ifdebug then reaper.ShowConsoleMsg(tostring(variable) .. "\n") end end
 
 -- Two equations that via recursion showed the best lines of fit in their ranges
 -- Data pulled from straight insertion and recording
 function dBToAutomation(x)
-    if x > -23.1 then
+    if x == 0 then return 716.21785031263
+    elseif x > -23.1 then
         return 714.7520864 + 21.62084026 * x + 0.1907747361 * x ^ (2)
     else
         return 702.833988 * 1.035972147 ^ (x)
@@ -30,20 +32,44 @@ function dBToAutomation(x)
 end
 
 -- Writes the automation points on the take envelope
-function SetVolumePoints(mi, c, db)
+function SetVolumePoints(currentMediaItem, point, dbMax, dbMin)
+    
     reaper.Main_OnCommand(reaper.NamedCommandLookup("_S&M_TAKEENV1"), 0) -- get take
-    local env = reaper.GetTakeEnvelopeByName(reaper.GetActiveTake(mi), "Volume") -- get volume envelope
+    SelectedTake = reaper.GetActiveTake(currentMediaItem)
+    -- retval, stringNeedBig = reaper.GetSetMediaItemTakeInfo_String( SelectedTake, "P_NAME")
+    -- Msg(stringNeedBig)
+    local env = reaper.GetTakeEnvelopeByName(SelectedTake, "Volume") -- get volume envelope
     Mode = reaper.GetEnvelopeScalingMode(env)
-    local ct = c / 2 -- cycle length / 2 to get time between points
-    local value = dBToAutomation(tonumber(db))
-    for k = 0, NumCycles * 2 + 1 do
-        if k % 2 == 0 then
-            vol = value
+    -- local ct = c / 2 -- cycle length / 2 to get time between points
+    local valueMax = dBToAutomation(tonumber(dbMax))
+    local valueMin = dBToAutomation(tonumber(dbMin))
+    -- local lowerDbValue = 716.21785031263
+
+    local itemLength = reaper.GetMediaItemInfo_Value(currentMediaItem, "D_LENGTH")
+    pointCount = 1
+    while point[pointCount] < itemLength do
+        if pointCount % 2 == 0 then
+            vol = valueMax
         else
-            vol = 716.21785031263
+            vol = valueMin
         end
-        reaper.InsertEnvelopePoint(env, c * k, vol, 0, 0, false)
+        Msg("Adding " .. vol)
+        reaper.InsertEnvelopePoint(env, point[pointCount], vol, 0, 0, false, true)
+        pointCount = pointCount + 1
     end
+    if point[pointCount - 1] ~= itemLength then
+        if vol == valueMax then reaper.InsertEnvelopePoint(env, itemLength, valueMin, 0, 0, false, true)
+        else reaper.InsertEnvelopePoint(env, itemLength, valueMax, 0, 0, false, true) end
+    end
+    reaper.Envelope_SortPoints(env)
+    -- for i = 0, # do
+    --     if k % 2 == 0 then
+    --         vol = value
+    --     else
+    --         vol = 716.21785031263
+    --     end
+    --     reaper.InsertEnvelopePoint(env, c * k, vol, 0, 0, false)
+    -- end
 end
 
 ----------------------------------------------------------------
@@ -51,7 +77,7 @@ end
 -- Main
 ----------------------------------------------------------------
 ----------------------------------------------------------------
-
+reaper.Undo_BeginBlock()
 -- Find all items
 SelItemCount = reaper.CountSelectedMediaItems(0)
 -- Find lengths of items
@@ -59,33 +85,56 @@ LongestKey = nil
 Items = {}
 for i = 1, SelItemCount do
     local sel = reaper.GetSelectedMediaItem(0, i - 1)
-    Items[sel] = reaper.GetMediaItemInfo_Value(sel, "D_LENGTH")
+    Items[i] = {
+        ["itemID"] = sel,
+        ["itemLength"] = reaper.GetMediaItemInfo_Value(sel, "D_LENGTH")
+    }
     if not LongestKey then
-        LongestKey = sel
+        LongestKey = i
     else
-        if Items[sel] > Items[LongestKey] then LongestKey = sel end
+        if Items[i]["itemLength"] > Items[LongestKey]["itemLength"] then LongestKey = i end
     end
 end
 -- Get User Input and parse it
-local continue, Cycles = reaper.GetUserInputs("Volume Cycle Count", 2,
-                                              "How Many Volume Cycles? , Max Volume in dBs: extrawidth=150",
+local continue, Cycles = reaper.GetUserInputs("Volume Cycle Count", 3,
+                                              "Number of Cycles: ,Offset Volume in dBs: , Start Point: extrawidth=150",
                                               "")
 if not continue or Cycles == "" then return end
 CycleResponse = {}
 for match in (Cycles .. ","):gmatch("(.-),") do
     table.insert(CycleResponse, match)
 end
-for i = 1, #CycleResponse do
-    if i == 1 then
-        NumCycles = CycleResponse[i]
-    elseif i == 2 then
-        MaxVol = CycleResponse[i]
-    end
-end
-CycleLength = Items[LongestKey] / NumCycles
--- Do processing on the longest item
-SetVolumePoints(LongestKey, CycleLength, MaxVol)
+-- for i = 1, #CycleResponse do
+--     if i == 1 then
+--         NumCycles = CycleResponse[i]
+--     elseif i == 2 then
+--         MaxVol = CycleResponse[i]
+--     end
+-- end
+if CycleResponse[1] == "" then NumCycles = 9
+else NumCycles = CycleResponse[1] end
+Offset = 1
+if CycleResponse[3] ~= "" then Offset = CycleResponse[3] end
+if Offset == 1 and CycleResponse[2] == "" then MinVol = -30 MaxVol = 0
+elseif Offset == 2 and CycleResponse[2] == "" then MaxVol = -30 MinVol = 0
+elseif Offset == 1 then MaxVol = 0 MinVol = CycleResponse[2]
+elseif Offset == 2 then MinVol = 0 MaxVol = CycleResponse[2] end
+if CycleResponse[3] == "" then MinVol = -30
+else MinVol = CycleResponse[3] end
 
+CycleLength = Items[LongestKey]["itemLength"] / (NumCycles * 2)
+
+PointLocations = {}
+for i = 1, NumCycles * 2 do
+    PointLocations[i] = CycleLength * i
+end
+-- Do processing on the longest item
+Msg(#PointLocations)
+for i = 1, #Items do
+    SetVolumePoints(Items[i]["itemID"], PointLocations, MaxVol, MinVol)
+end
+
+reaper.Undo_EndBlock( "wnlowe_dvitas Volume Automation", 0 )
 ----------------------------------------------------------------
 ----------------------------------------------------------------
 -- NOTES

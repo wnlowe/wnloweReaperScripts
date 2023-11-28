@@ -1,8 +1,13 @@
--- Script to Render audio in a more streamlined manner for
---  specific workflows
--- V 0.5
--- By William N. Lowe
--- wnlsounddesign.com
+-- @description Fast Render Window
+-- @author William N. Lowe
+-- @version 0.5
+-- @about
+--   # Fast Render Window
+--   Script to render audio in a more streamlined manner
+--      for very specific workflows. 
+--   ## Must have RTK installed
+--   wnlsounddesign.com
+
 ----------------------------------------------------------------
 ----------------------------------------------------------------
 -- Release Notes
@@ -16,10 +21,11 @@
 ----------------------------------------------------------------
 --[[
     [] GUI Prettification
-    [] Add Ambix Options
+    [x] Add Ambix Options
     [] Complete NVK Check
     [] Make NVK actions universal
     [x] Close CB replaces to the wrong place
+    [] Move close to bottom
 ]]--------------------------------------------------------------
 ----------------------------------------------------------------
 -- GLOBAL HELPER FUNCTIONS AND CONFIG
@@ -99,16 +105,16 @@ function WritePaths()
             Msg("What??")
         end
     end
-        local bvalid = false
-        Msg('hi')
-        while not bvalid do
-            Msg("Hello")
-            v, pigmentsRenderDir = reaper.GetUserInputs("Pigments Parent Render Path", 1, "Pigments Parent Path: extrawidth=150", "")
-            if not isdir(defaultRenderDir) then
-                reaper.ShowMessageBox( "That is not a valid pigments directory :( Please try again", "Invalid Directory", 0 )
-            else bvalid = true
-            end
+    local bvalid = false
+    Msg('hi')
+    while not bvalid do
+        Msg("Hello")
+        v, pigmentsRenderDir = reaper.GetUserInputs("Pigments Parent Render Path", 1, "Pigments Parent Path: extrawidth=150", "")
+        if not isdir(defaultRenderDir) then
+            reaper.ShowMessageBox( "That is not a valid pigments directory :( Please try again", "Invalid Directory", 0 )
+        else bvalid = true
         end
+    end
     file:write("DRD," .. defaultRenderDir ..'\nPigments,' .. pigmentsRenderDir)
     file:close()
 end
@@ -191,7 +197,6 @@ local rtk = require('rtk')
 local log = rtk.log
 --Main Window
 win = rtk.Window{w=640, h=480, halign = 'center', title='WNL Render Settings'}
-
 --Vertical Primary Container
 local main = win:add(rtk.VBox{halign="center", vspacing = 10})
 ----------------------------------------
@@ -203,6 +208,7 @@ local selection = main:add(rtk.OptionMenu{
         {'NVK Render', id='nvk', color = '#00FFFF'},
         {'Region Matrix', id='rrm'},
         {'Time Selection', id='time'},
+        {'UCS Render', id='ucs'},
     },
 })
 selection:attr('selected', 'nvk')
@@ -228,7 +234,19 @@ selection.onchange = function(self, item)
     end
 end
 
--- Msg(rtk.Window.docked)
+---------------------------------------------------
+--Render Settings
+---------------------------------------------------
+local renderSettingsContainter = main:add(rtk.VBox{halign='center', spacing = 20, padding = 10})
+
+local ambixSettingsContainer = renderSettingsContainter:add(rtk.HBox{valign='center', spacing=10})
+local ambixSettingsText = ambixSettingsContainer:add(rtk.Text{"Quad Channels?"})
+local ambixSettingsCB = ambixSettingsContainer:add(rtk.CheckBox{value='unchecked'})
+
+local bitDepthSettingsContainer = renderSettingsContainter:add(rtk.HBox{valign='center', spacing=10})
+local bitDepthSettingsText = bitDepthSettingsContainer:add(rtk.Text{"32 Bit Render?"})
+local bitDepthSettingsCB = bitDepthSettingsContainer:add(rtk.CheckBox{value='unchecked'})
+
 ---------------------------------------------------
 --Close Count Settings with Docking Considerations
 ---------------------------------------------------
@@ -344,17 +362,21 @@ function videoDraftRenderSettings()
     if video.value == rtk.CheckBox.CHECKED then
         if add.value == rtk.CheckBox.CHECKED then
             reaper.GetSetProjectInfo_String(0, "RENDER_FORMAT2", vidSettings, true)
+            if bitDepthSettingsCB.value == rtk.CheckBox.CHECKED then reaper.GetSetProjectInfo_String(0, "RENDER_FORMAT", wavSettings32, true)
+            else reaper.GetSetProjectInfo_String(0, "RENDER_FORMAT", wavSettings, true) end
         else reaper.GetSetProjectInfo_String(0, "RENDER_FORMAT", vidSettings, true)
             reaper.GetSetProjectInfo_String(0, "RENDER_FORMAT2", "", true)
         end
-    elseif "wave" ~= reaper.GetSetProjectInfo_String(0, "RENDER_FORMAT", "", false) then
-        reaper.GetSetProjectInfo_String(0, "RENDER_FORMAT", wavSettings, true)
+    else
+        if bitDepthSettingsCB.value == rtk.CheckBox.CHECKED then reaper.GetSetProjectInfo_String(0, "RENDER_FORMAT", wavSettings32, true)
+        else reaper.GetSetProjectInfo_String(0, "RENDER_FORMAT", wavSettings, true) end
         reaper.GetSetProjectInfo_String(0, "RENDER_FORMAT2", "", true)
     end
 end
 
 function nvk()
-    reaper.GetSetProjectInfo(0, "RENDER_Channels", 2, true)
+    if ambixSettingsCB.value == rtk.CheckBox.CHECKED then reaper.GetSetProjectInfo(0, "RENDER_Channels", 4, true)
+    else reaper.GetSetProjectInfo(0, "RENDER_Channels", 2, true) end
     reaper.GetSetProjectInfo(0, "RENDER_SETTINGS", 64, true)
     Msg("Hi")
     if pathCB.selected == 'final' then reaper.GetSetProjectInfo_String(0, "RENDER_FILE", renderdir, true )
