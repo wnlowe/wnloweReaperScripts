@@ -46,6 +46,12 @@ function SetVolumePoints(currentMediaItem, point, dbMax, dbMin)
     -- local lowerDbValue = 716.21785031263
 
     local itemLength = reaper.GetMediaItemInfo_Value(currentMediaItem, "D_LENGTH")
+    Msg(Offset)
+    if Offset == 2 then
+        rpidx = reaper.GetEnvelopePointByTimeEx( env, 0, 0 )
+        Msg(rpidx)
+        reaper.SetEnvelopePointEx(env, rpidx, 0, 0, valueMax)
+    end
     pointCount = 1
     while point[pointCount] < itemLength do
         if pointCount % 2 == 0 then
@@ -114,13 +120,24 @@ end
 if CycleResponse[1] == "" then NumCycles = 9
 else NumCycles = CycleResponse[1] end
 Offset = 1
-if CycleResponse[3] ~= "" then Offset = CycleResponse[3] end
-if Offset == 1 and CycleResponse[2] == "" then MinVol = -30 MaxVol = 0
-elseif Offset == 2 and CycleResponse[2] == "" then MaxVol = -30 MinVol = 0
-elseif Offset == 1 then MaxVol = 0 MinVol = CycleResponse[2]
-elseif Offset == 2 then MinVol = 0 MaxVol = CycleResponse[2] end
-if CycleResponse[3] == "" then MinVol = -30
-else MinVol = CycleResponse[3] end
+if CycleResponse[3] ~= "" then Offset = tonumber(CycleResponse[3]) end
+if Offset == 1 then
+    if CycleResponse[2] == "" then
+        MaxVol = 0
+        MinVol = -30
+    else
+        MaxVol = 0
+        MinVol = CycleResponse[2]
+    end
+else
+    if CycleResponse[2] == "" then
+        MaxVol = -30
+        MinVol = 0
+    else
+        MaxVol = CycleResponse[2]
+        MinVol = 0
+    end
+end
 
 CycleLength = Items[LongestKey]["itemLength"] / (NumCycles * 2)
 
