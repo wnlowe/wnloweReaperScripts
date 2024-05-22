@@ -34,6 +34,8 @@ end
 --FUNCTIONS
 ----------------------------------------------------------
 ----------------------------------------------------------
+IsCatID = true
+
 function MicConfigurationTranslation(original)
     local configuration = {
         ["Cardioid - Mono"] = "CARD",
@@ -167,14 +169,20 @@ function LibraryAbr(client, abrv)
 end
 
 function CatIDControl(idInput)
-    if idInput == "" then return "DSGNMisc-" 
-    else return idInput .. "-"end
+    if idInput == "" then IsCatID = false return ""--"DSGNMisc-" 
+    else IsCatID = true return idInput end
+end
+
+function UserCatControl(userCat)
+    userCat = string.upper(userCat)
+    if userCat == "" then return "_"
+    else if IsCatID then return "-"..userCat.."_" else return "-"..userCat.."_"end end
 end
 
 function RegionColor(region)
-    if region:gsub(" ", "") == "48k" or region:gsub(" ", "") == "48" or region:gsub(" ", "") == "48000" then return reaper.ColorToNative(255, 0, 0)|0x1000000
-    elseif region:gsub(" ", "") == "96k" or region:gsub(" ", "") == "96" or region:gsub(" ", "") == "96000" then return reaper.ColorToNative(0, 255, 0)|0x1000000
-    elseif region:gsub(" ", "") == "192k" or region:gsub(" ", "") == "192" or region:gsub(" ", "") == "192000" then return reaper.ColorToNative(0, 0, 255)|0x1000000
+    if region:gsub(" ", "") == "48k" or region:gsub(" ", "") == "48" or region:gsub(" ", "") == "48000" or string.lower(region:gsub(" ", "")) == "48khz" then return reaper.ColorToNative(255, 0, 0)|0x1000000
+    elseif region:gsub(" ", "") == "96k" or region:gsub(" ", "") == "96" or region:gsub(" ", "") == "96000" or string.lower(region:gsub(" ", "")) == "96khz" then return reaper.ColorToNative(0, 255, 0)|0x1000000
+    elseif region:gsub(" ", "") == "192k" or region:gsub(" ", "") == "192" or region:gsub(" ", "") == "192000" or string.lower(region:gsub(" ", "")) == "192khz"then return reaper.ColorToNative(0, 0, 255)|0x1000000
     else return 0
     end
 end
@@ -248,7 +256,7 @@ for i = 0, numItems - 1 do
                     "Microphone=" .. fileOutput[row][9] .. ";Designer=" .. fileOutput[row][15] .. ";ShortID=;"
     local idx = reaper.AddProjectMarker( 0, false, start, start, METASTRING, 0 )
     local idx = reaper.AddProjectMarker(0, false, start + 0.001, start + 0.001, "META", 0)
-    local idx = reaper.AddProjectMarker2(0, true, start, full, CatIDControl(fileOutput[row][2]) .. string.upper(fileOutput[row][3]) .. "_" .. fileName .. LibraryAbr(fileOutput[1][1], fileOutput[row][8]), -1, RegionColor(fileOutput[row][16]) )
+    local idx = reaper.AddProjectMarker2(0, true, start, full, CatIDControl(fileOutput[row][2]) .. UserCatControl(fileOutput[row][3]) .. fileName .. LibraryAbr(fileOutput[1][1], fileOutput[row][8]), -1, RegionColor(fileOutput[row][16]) )
 
     -- local r, name2 = reaper.GetSetMediaItemTakeInfo_String(take, "P_NAME", name .. "_" .. fileOutput[row][12], true)
     ::final::

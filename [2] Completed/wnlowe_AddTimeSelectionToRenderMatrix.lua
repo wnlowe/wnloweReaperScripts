@@ -7,14 +7,22 @@ function Msg(variable)
     if Dbug then reaper.ShowConsoleMsg(tostring (variable).."\n") end
 end
 
-function SelectTrack()
+retval, UsrMode = reaper.GetUserInputs( "Mode", 1, "Script Mode: ", "")
+UsrMode = tonumber(UsrMode)
+
+function SelectTrack(selection)
     local selectedTrack = reaper.GetSelectedTrack(0, 0)
     local re, trackName = reaper.GetSetMediaTrackInfo_String( selectedTrack, "P_NAME", "", false )
-    if string.find(trackName, "SFX_") == nil then
-        return  reaper.GetParentTrack( selectedTrack )
-    else
-        return selectedTrack
+    if UsrMode == 0 then
+        if string.find(trackName, "SFX_") == nil then
+            return  reaper.GetParentTrack( selectedTrack )
+        else
+            return selectedTrack
+        end
+    elseif UsrMode == 1 then
+        return TrackSel[AddRegions[selection]]
     end
+    
 end
 
 StartTime, EndTime = reaper.GetSet_LoopTimeRange2(0, false, false, 0, 0, false)
@@ -22,6 +30,7 @@ ret, marks, regs = reaper.CountProjectMarkers(0)
 
 AddRegions = {}
 TrackRegions = {}
+TrackSel = {}
 for i = 0, regs + marks do
     ret, isr, regPos, regEnd, regName, MarInx = reaper.EnumProjectMarkers(i)
     if isr and regPos > StartTime and regPos < EndTime then
@@ -45,6 +54,7 @@ for i = 0, regs + marks do
         Msg(chan)
         table.insert(AddRegions, MarInx)
         TrackRegions[MarInx] = chan * 2
+        TrackSel[MarInx] =  reaper.GetMediaItemTrack( item )
         ::notFound::
     end
 end
@@ -54,6 +64,6 @@ end
 for ri = 1, #AddRegions do
     -- Msg(TrackRegions[AddRegions[ri]])
     reaper.SetRegionRenderMatrix(0, AddRegions[ri],
-                                 SelectTrack(), TrackRegions[AddRegions[ri]])
+                                 SelectTrack(ri), TrackRegions[AddRegions[ri]])
 end
 reaper.DockWindowRefresh()
