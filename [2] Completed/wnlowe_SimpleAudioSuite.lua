@@ -12,6 +12,11 @@
     [x] Configure for multiple items at once
 ]] -------------------------------------------------------------
 ----------------------------------------------------------------
+-- USER VARIABLES
+DeleteAudioSuiteTrackOnActionComplete = true
+----------------------------------------------------------------
+----------------------------------------------------------------
+----------------------------------------------------------------
 -- FUNCTIONS
 ----------------------------------------------------------------
 ----------------------------------------------------------------
@@ -29,14 +34,12 @@ function FindAStrack()
         trackname = string.upper(trackname)
         if trackname == "AUDIOSUITE" then
             return tr
-        else
-            if trackname == "AUDIO SUITE" then
-                return tr
-            else
-                return 1
-            end
+        elseif trackname == "AUDIO SUITE" then
+            return tr
         end
+        i = i + 1
     end
+    return 1
 end
 
 -- Collects all necessary information on items and their corresponding home track to run the process
@@ -61,16 +64,36 @@ function RunAudioSuite()
         reaper.ShowMessageBox("No Audio Suite Track!!", "Error", 0)
         return
     end
+    local resp = reaper.ShowMessageBox("Delete Audio Suite Track On Complete?", "Delete Track", 4)
+    if resp == 6 then
+        DeleteAudioSuiteTrackOnActionComplete = true
+    else
+        DeleteAudioSuiteTrackOnActionComplete = false
+    end
     for i = 0, #ItemList do
         -- Move the item to the Audio Suite track and select it
         reaper.MoveMediaItemToTrack(ItemList[i], AudioSuite)
         reaper.SetMediaItemSelected(ItemList[i], true)
+        local take = reaper.GetActiveTake( ItemList[i] )
+        local source = reaper.GetMediaItemTake_Source(take)
+        local chan = reaper.GetMediaSourceNumChannels(source)
         -- Process the Media Item
-        reaper.Main_OnCommand(40209, 0) --40361 for mono; 41993
+        if chan == 1 then
+            reaper.Main_OnCommand(40361, 0) -- Item: Apply track/take FX to items (mono output)
+        elseif chan == 2 then
+            reaper.Main_OnCommand(40209, 0) -- Item: Apply track/take FX to items
+        elseif chan > 2 then
+            reaper.Main_OnCommand(41993, 0) -- Item: Apply track/take FX to items (multichannel output)
+        else
+
+        end
+        -- reaper.Main_OnCommand(40209, 0) --40361 for mono; 41993
         -- Return the Media Item and deselect it
         reaper.MoveMediaItemToTrack(ItemList[i], TrackList[i])
         reaper.SetMediaItemSelected(ItemList[i], false)
+        
     end
+    if DeleteAudioSuiteTrackOnActionComplete then reaper.DeleteTrack( AudioSuite ) end
 end
 
 ----------------------------------------------------------------
@@ -78,7 +101,7 @@ end
 -- Main
 ----------------------------------------------------------------
 ----------------------------------------------------------------
-
+reaper.PreventUIRefresh(1)
 -- Make sure there are items selected
 if reaper.CountSelectedTracks(0) > 0 then
     -- Makes sure this is considered all one action in the undo menu
@@ -89,11 +112,12 @@ if reaper.CountSelectedTracks(0) > 0 then
     RunAudioSuite()
     -- Reselect the media items
     for i = 0, #ItemList do reaper.SetMediaItemSelected(ItemList[i], true) end
-    reaper.Undo_EndBlock("William Lowe Audio Suite Action", 0)
+
+    reaper.Undo_EndBlock("wnlowe Audio Suite Action", 0)
 else
     reaper.ShowMessageBox("No items selected!", "Error", 0)
 end
-
+reaper.PreventUIRefresh(-1)
 ----------------------------------------------------------------
 ----------------------------------------------------------------
 -- NOTES

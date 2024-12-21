@@ -75,12 +75,11 @@ function MicConfigurationTranslation(original)
         ["Jecklin"] = "OSS",
         ["Boundary"] = "BOUND",
     }
-    if original == "" then
+    if original == "" or original == nil then
         return "RecType=;"
     else
         return "RecType=" .. configuration[original] .. ";"
     end
-    
 end
 
 function MicPerspectiveTranslation(original, location)

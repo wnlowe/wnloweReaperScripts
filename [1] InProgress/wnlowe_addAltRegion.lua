@@ -2,6 +2,11 @@ function Msg(variable)
     reaper.ShowConsoleMsg(tostring (param).."\n")
 end
 
+function GetRenderTrack(region)
+    local ret, isr, regPos, regEnd, regName, MarInx = reaper.EnumProjectMarkers(region)
+    return  reaper.EnumRegionRenderMatrix( 0, MarInx, 0 )
+end
+
 numItems = reaper.CountSelectedMediaItems(0)
 allItems = {}
 fileName = ""
@@ -32,4 +37,6 @@ for i = 0, regs + marks do
 end
 
 ret, isr, regPos, regEnd, regName, MarInx = reaper.EnumProjectMarkers(compSel)
-reaper.AddProjectMarker(0, true, beginning, last, string.format("%s_%s", tostring(regName), "ALT"), 1)
+NewRegion = reaper.AddProjectMarker(0, true, beginning, last, string.format("%s_%s", tostring(regName), "ALT"), 1)
+RenderTrack = GetRenderTrack(compSel)
+if RenderTrack ~= nil then reaper.SetRegionRenderMatrix( 0, NewRegion, RenderTrack, 1 ) end
