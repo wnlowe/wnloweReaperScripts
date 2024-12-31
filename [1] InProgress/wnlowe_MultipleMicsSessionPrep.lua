@@ -17,7 +17,20 @@ function split(inputstr, sep)
     return t
 end
 
-retval, folder = reaper.JS_Dialog_BrowseForFolder( "Source Audio Files", [[C:\Users\ccuts\Downloads\Sanzaru_Archives_Dec_Foley_Water\Audio Files]] )
+local os = reaper.GetOS()
+local printing = string.find(tostring(os), "Win")
+local DirectoryMarker = [[\]]
+Msg(printing)
+if string.find(tostring(os), "Win") then
+    retval, folder = reaper.JS_Dialog_BrowseForFolder( "Source Audio Files", [[C:\Users\ccuts\Downloads\Sanzaru_Archives_Dec_Foley_Water\Audio Files]] )
+    Msg(folder)
+elseif string.find(tostring(os), "OSX") then
+    retval, folder = reaper.JS_Dialog_BrowseForFolder( "Source Audio Files", [[/Users/williamnlowe/Desktop/Audio Files/Testing]] )
+    DirectoryMarker = [[/]]
+    Msg(folder)
+end
+
+reaper.PreventUIRefresh(1)
 
 index = 0
 SourceFiles = {}
@@ -108,6 +121,7 @@ MediaItemIndex = 0
 --     ["SANKEN"] = 0
 -- }
 local time = 1
+correctPositions = {}
 for i=0, #FileKeys do
     local key = FileKeys[i]
     Msg(key)
@@ -115,6 +129,10 @@ for i=0, #FileKeys do
     local lengths = {}
     if type(SortFiles[key]) ~= "table" then goto notTable end
     for k, v in pairs(SortFiles[key]) do
+        Msg(k)
+        Msg(v)
+        Msg(time)
+        reaper.SetEditCurPos(time, true, true)
         if k == "8040" then
             reaper.SetOnlyTrackSelected( t8040 )
         elseif k == 'Hydrophone' then
@@ -122,12 +140,20 @@ for i=0, #FileKeys do
         elseif k == 'SANKEN' then
             reaper.SetOnlyTrackSelected( tSanken )
         end
-        reaper.InsertMedia( folder .. [[\]] .. v .. '.wav', 0 )
+        reaper.InsertMedia( folder .. DirectoryMarker .. v .. '.wav', 0 )
         mi = reaper.GetMediaItem(0, MediaItemIndex)
+        Msg("Name")
+        local r, m = reaper.GetSetMediaItemTakeInfo_String(reaper.GetActiveTake(mi), "P_NAME", "", false)
+        Msg(m)
         
         sourceTime, r = reaper.GetMediaSourceLength( reaper.GetMediaItemTake_Source( reaper.GetActiveTake( mi ) ) )
         table.insert(lengths, sourceTime)
+        Msg(time)
         reaper.SetMediaItemInfo_Value(mi, "D_POSITION", time)
+        
+        correctPositions.mi = time
+        Msg(reaper.GetMediaItemInfo_Value(mi, "D_POSITION"))
+        Msg("########################")
 
         
         
@@ -138,7 +164,37 @@ for i=0, #FileKeys do
     time = time + 3 + lengths[#lengths]
     reaper.SetEditCurPos( time, true, true )
     ::notTable::
+    Msg("////////////////////////////")
 end
+
+Msg('#####################')
+Msg('#####################')
+
+
+-- for key in pairs(correctPositions) do
+--     mi = key
+--     t = correctPositions[key]
+--     reaper.SetMediaItemInfo_Value(mi, "D_POSITION", t)
+
+--     local r, m = reaper.GetSetMediaItemTakeInfo_String(reaper.GetActiveTake(mi), "P_NAME", "", false)
+--     Msg('The Media Item for: ' .. m .. " is at time: " .. t)
+-- end
+
+reaper.PreventUIRefresh(-1)
+
+numMI = reaper.CountMediaItems(0)
+
+Msg(numMI)
+
+for i = 0, numMI - 1 do
+    local mi = reaper.GetMediaItem(0, i)
+    if correctPositions.mi == nil then Msg("OOPS") goto oops end
+    local t = correctPositions.mi
+    Msg(t)
+    reaper.SetMediaItemInfo_Value(mi, "D_POSITION", t)
+    ::oops::
+end
+
 
 -- reaper.InsertMedia( file, mode )
 
