@@ -1,7 +1,7 @@
 
 
 function Msg(variable)
-    dbug = true
+    dbug = false
     if dbug then reaper.ShowConsoleMsg(tostring (variable).."\n") end
 end
 
@@ -30,7 +30,7 @@ elseif string.find(tostring(os), "OSX") then
     Msg(folder)
 end
 
-reaper.PreventUIRefresh(1)
+-- reaper.PreventUIRefresh(1)
 
 index = 0
 SourceFiles = {}
@@ -120,19 +120,21 @@ MediaItemIndex = 0
 --     ["Hydrophone"] = 0,
 --     ["SANKEN"] = 0
 -- }
-local time = 1
+reaper.SetEditCurPos(1, true, true)
+
+cursortime = reaper.GetCursorPosition()
 correctPositions = {}
 for i=0, #FileKeys do
     local key = FileKeys[i]
     Msg(key)
-    
     local lengths = {}
     if type(SortFiles[key]) ~= "table" then goto notTable end
     for k, v in pairs(SortFiles[key]) do
+        reaper.SetEditCurPos(cursortime, true, true)
         Msg(k)
         Msg(v)
-        Msg(time)
-        reaper.SetEditCurPos(time, true, true)
+        -- Msg(time)
+        -- reaper.SetEditCurPos(time, true, true)
         if k == "8040" then
             reaper.SetOnlyTrackSelected( t8040 )
         elseif k == 'Hydrophone' then
@@ -149,7 +151,7 @@ for i=0, #FileKeys do
         sourceTime, r = reaper.GetMediaSourceLength( reaper.GetMediaItemTake_Source( reaper.GetActiveTake( mi ) ) )
         table.insert(lengths, sourceTime)
         Msg(time)
-        reaper.SetMediaItemInfo_Value(mi, "D_POSITION", time)
+        -- reaper.SetMediaItemInfo_Value(mi, "D_POSITION", time)
         
         correctPositions.mi = time
         Msg(reaper.GetMediaItemInfo_Value(mi, "D_POSITION"))
@@ -158,11 +160,13 @@ for i=0, #FileKeys do
         
         
         MediaItemIndex = MediaItemIndex + 1
+        
     end
 
     table.sort(lengths)
-    time = time + 3 + lengths[#lengths]
-    reaper.SetEditCurPos( time, true, true )
+    -- time = time + 3 + lengths[#lengths]
+    reaper.SetEditCurPos( reaper.GetCursorPosition() + 1, true, true )
+    cursortime = reaper.GetCursorPosition()
     ::notTable::
     Msg("////////////////////////////")
 end
@@ -180,20 +184,20 @@ Msg('#####################')
 --     Msg('The Media Item for: ' .. m .. " is at time: " .. t)
 -- end
 
-reaper.PreventUIRefresh(-1)
+-- reaper.PreventUIRefresh(-1)
 
 numMI = reaper.CountMediaItems(0)
 
 Msg(numMI)
 
-for i = 0, numMI - 1 do
-    local mi = reaper.GetMediaItem(0, i)
-    if correctPositions.mi == nil then Msg("OOPS") goto oops end
-    local t = correctPositions.mi
-    Msg(t)
-    reaper.SetMediaItemInfo_Value(mi, "D_POSITION", t)
-    ::oops::
-end
+-- for i = 0, numMI - 1 do
+--     local mi = reaper.GetMediaItem(0, i)
+--     if correctPositions.mi == nil then Msg("OOPS") goto oops end
+--     local t = correctPositions.mi
+--     Msg(t)
+--     reaper.SetMediaItemInfo_Value(mi, "D_POSITION", t)
+--     ::oops::
+-- end
 
 
 -- reaper.InsertMedia( file, mode )
@@ -205,3 +209,6 @@ WATER_LargeObject_Splash Hydrophone_05  >> WATER_LargeObject_Splash_05 && Hydrop
 WATER_LargeObject_Splash SANKEN_05      >> WATER_LargeObject_Splash_05 && SANKEN
 WATER_LargeObject_Splash 8040_05        >> WATER_LargeObject_Splash_05 && 8040
 ]]
+
+
+
