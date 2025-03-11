@@ -40,18 +40,18 @@ r, macro = reaper.GetUserInputs("Macro Index Connection", 1, "Macro Number:", ""
 if not r then
     reaper.ReaScriptError( "!You did not select a macro" )
 end
-MacroSelect = "Macro"..macro
+-- MacroSelect = "Macro"..macro
 
 local  retval, tracknumber, fxnumber, paramnumber = reaper.GetLastTouchedFX()
 
 
 
 parmname = 'param.' .. paramnumber .. '.plink.active'
-local ret = reaper.TrackFX_SetNamedConfigParm( track, fxnumber, parmname, 1 )
+reaper.TrackFX_SetNamedConfigParm( track, fxnumber, parmname, 1 )
 parmname = 'param.' .. paramnumber .. '.plink.effect'
-local ret1 = reaper.TrackFX_SetNamedConfigParm( track, fxnumber, parmname, idx )
+reaper.TrackFX_SetNamedConfigParm( track, fxnumber, parmname, idx )
 paramname = 'param.' .. paramnumber .. 'plink.param'
-local ret2 = reaper.TrackFX_SetNamedConfigParm(track, fxnumber, paramname, macro - 1)
+reaper.TrackFX_SetNamedConfigParm(track, fxnumber, paramname, macro - 1)
 
 
 
